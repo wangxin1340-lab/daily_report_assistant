@@ -3,6 +3,19 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { trpc } from "@/lib/trpc";
 import {
   Calendar,
@@ -13,35 +26,104 @@ import {
   Search,
   AlertCircle,
   ChevronRight,
+  Filter,
+  ArrowUpDown,
+  X,
+  CalendarDays,
 } from "lucide-react";
 import { useState, useMemo } from "react";
 import { useLocation } from "wouter";
 
+type SyncStatus = "all" | "synced" | "pending" | "failed";
+type SortBy = "date_desc" | "date_asc" | "created_desc" | "created_asc";
+
 export default function History() {
   const [, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
+  
+  // 筛选状态
+  const [syncStatusFilter, setSyncStatusFilter] = useState<SyncStatus>("all");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  
+  // 排序状态
+  const [sortBy, setSortBy] = useState<SortBy>("date_desc");
 
   const { data: reports, isLoading } = trpc.report.list.useQuery();
 
-  // 过滤日报
-  const filteredReports = useMemo(() => {
-    if (!reports) return [];
-    if (!searchQuery.trim()) return reports;
+  // 计算是否有活跃的筛选条件
+  const hasActiveFilters = syncStatusFilter !== "all" || startDate || endDate;
 
-    const query = searchQuery.toLowerCase();
-    return reports.filter(
-      (report) =>
-        report.summary?.toLowerCase().includes(query) ||
-        report.workContent?.toLowerCase().includes(query) ||
-        report.problems?.toLowerCase().includes(query)
-    );
-  }, [reports, searchQuery]);
+  // 清除所有筛选
+  const clearFilters = () => {
+    setSyncStatusFilter("all");
+    setStartDate("");
+    setEndDate("");
+  };
+
+  // 过滤和排序日报
+  const filteredAndSortedReports = useMemo(() => {
+    if (!reports) return [];
+
+    let result = [...reports];
+
+    // 搜索过滤
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(
+        (report) =>
+          report.summary?.toLowerCase().includes(query) ||
+          report.workContent?.toLowerCase().includes(query) ||
+          report.problems?.toLowerCase().includes(query)
+      );
+    }
+
+    // 同步状态过滤
+    if (syncStatusFilter !== "all") {
+      result = result.filter((report) => {
+        if (syncStatusFilter === "pending") {
+          return !report.notionSyncStatus || report.notionSyncStatus === "pending";
+        }
+        return report.notionSyncStatus === syncStatusFilter;
+      });
+    }
+
+    // 日期范围过滤
+    if (startDate) {
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+      result = result.filter((report) => new Date(report.reportDate) >= start);
+    }
+    if (endDate) {
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      result = result.filter((report) => new Date(report.reportDate) <= end);
+    }
+
+    // 排序
+    result.sort((a, b) => {
+      switch (sortBy) {
+        case "date_desc":
+          return new Date(b.reportDate).getTime() - new Date(a.reportDate).getTime();
+        case "date_asc":
+          return new Date(a.reportDate).getTime() - new Date(b.reportDate).getTime();
+        case "created_desc":
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        case "created_asc":
+          return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        default:
+          return 0;
+      }
+    });
+
+    return result;
+  }, [reports, searchQuery, syncStatusFilter, startDate, endDate, sortBy]);
 
   // 按日期分组
   const groupedReports = useMemo(() => {
-    const groups: Record<string, typeof filteredReports> = {};
+    const groups: Record<string, typeof filteredAndSortedReports> = {};
 
-    filteredReports.forEach((report) => {
+    filteredAndSortedReports.forEach((report) => {
       const date = new Date(report.reportDate);
       const monthKey = `${date.getFullYear()}年${date.getMonth() + 1}月`;
 
@@ -52,7 +134,7 @@ export default function History() {
     });
 
     return groups;
-  }, [filteredReports]);
+  }, [filteredAndSortedReports]);
 
   const getSyncStatusBadge = (status: string | null) => {
     switch (status) {
@@ -96,36 +178,181 @@ export default function History() {
           <h1 className="text-2xl font-bold">历史日报</h1>
           <p className="text-muted-foreground mt-1">
             共 {reports?.length || 0} 份日报
+            {filteredAndSortedReports.length !== reports?.length && (
+              <span className="ml-1">
+                （已筛选 {filteredAndSortedReports.length} 份）
+              </span>
+            )}
           </p>
         </div>
       </div>
 
-      {/* 搜索 */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="搜索日报内容..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10"
-        />
+      {/* 搜索和筛选栏 */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        {/* 搜索框 */}
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="搜索日报内容..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+
+        {/* 筛选按钮 */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="gap-2 shrink-0">
+              <Filter className="h-4 w-4" />
+              筛选
+              {hasActiveFilters && (
+                <Badge variant="secondary" className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
+                  !
+                </Badge>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-80" align="end">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="font-medium">筛选条件</h4>
+                {hasActiveFilters && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={clearFilters}
+                    className="h-auto p-1 text-xs text-muted-foreground"
+                  >
+                    <X className="h-3 w-3 mr-1" />
+                    清除
+                  </Button>
+                )}
+              </div>
+
+              {/* 同步状态筛选 */}
+              <div className="space-y-2">
+                <Label className="text-sm">同步状态</Label>
+                <Select
+                  value={syncStatusFilter}
+                  onValueChange={(value) => setSyncStatusFilter(value as SyncStatus)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="选择状态" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">全部</SelectItem>
+                    <SelectItem value="synced">已同步</SelectItem>
+                    <SelectItem value="pending">待同步</SelectItem>
+                    <SelectItem value="failed">同步失败</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* 日期范围筛选 */}
+              <div className="space-y-2">
+                <Label className="text-sm">日期范围</Label>
+                <div className="flex gap-2 items-center">
+                  <Input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="flex-1"
+                  />
+                  <span className="text-muted-foreground">至</span>
+                  <Input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="flex-1"
+                  />
+                </div>
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
+
+        {/* 排序选择 */}
+        <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortBy)}>
+          <SelectTrigger className="w-[160px] shrink-0">
+            <ArrowUpDown className="h-4 w-4 mr-2" />
+            <SelectValue placeholder="排序方式" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="date_desc">日期 (新→旧)</SelectItem>
+            <SelectItem value="date_asc">日期 (旧→新)</SelectItem>
+            <SelectItem value="created_desc">创建时间 (新→旧)</SelectItem>
+            <SelectItem value="created_asc">创建时间 (旧→新)</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
+      {/* 活跃筛选标签 */}
+      {hasActiveFilters && (
+        <div className="flex flex-wrap gap-2">
+          {syncStatusFilter !== "all" && (
+            <Badge variant="secondary" className="gap-1">
+              状态: {syncStatusFilter === "synced" ? "已同步" : syncStatusFilter === "pending" ? "待同步" : "同步失败"}
+              <button
+                onClick={() => setSyncStatusFilter("all")}
+                className="ml-1 hover:text-destructive"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          )}
+          {startDate && (
+            <Badge variant="secondary" className="gap-1">
+              开始: {startDate}
+              <button
+                onClick={() => setStartDate("")}
+                className="ml-1 hover:text-destructive"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          )}
+          {endDate && (
+            <Badge variant="secondary" className="gap-1">
+              结束: {endDate}
+              <button
+                onClick={() => setEndDate("")}
+                className="ml-1 hover:text-destructive"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          )}
+        </div>
+      )}
+
       {/* 日报列表 */}
-      {filteredReports.length === 0 ? (
+      {filteredAndSortedReports.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <FileText className="h-12 w-12 text-muted-foreground/50 mb-4" />
             <p className="text-muted-foreground">
-              {searchQuery ? "没有找到匹配的日报" : "暂无日报记录"}
+              {searchQuery || hasActiveFilters ? "没有找到匹配的日报" : "暂无日报记录"}
             </p>
-            {!searchQuery && (
+            {!searchQuery && !hasActiveFilters && (
               <Button
                 variant="outline"
                 className="mt-4"
                 onClick={() => setLocation("/")}
               >
                 开始写日报
+              </Button>
+            )}
+            {(searchQuery || hasActiveFilters) && (
+              <Button
+                variant="outline"
+                className="mt-4"
+                onClick={() => {
+                  setSearchQuery("");
+                  clearFilters();
+                }}
+              >
+                清除筛选条件
               </Button>
             )}
           </CardContent>
@@ -137,6 +364,9 @@ export default function History() {
               <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
                 <Calendar className="h-5 w-5 text-primary" />
                 {month}
+                <Badge variant="outline" className="ml-2 font-normal">
+                  {monthReports.length} 份
+                </Badge>
               </h2>
               <div className="space-y-3">
                 {monthReports.map((report) => {
@@ -150,7 +380,7 @@ export default function History() {
                       <CardContent className="p-4">
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-3 mb-2">
+                            <div className="flex items-center gap-3 mb-2 flex-wrap">
                               <span className="font-medium">
                                 {date.toLocaleDateString("zh-CN", {
                                   month: "long",

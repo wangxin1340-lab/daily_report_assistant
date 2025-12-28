@@ -18,6 +18,8 @@ import {
   Upload,
   Edit,
   Eye,
+  Copy,
+  Check,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
@@ -28,6 +30,7 @@ export default function ReportDetail() {
   const { id } = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
   const [isEditing, setIsEditing] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
   const [editedReport, setEditedReport] = useState({
     workContent: "",
     completionStatus: "",
@@ -87,6 +90,45 @@ export default function ReportDetail() {
     syncToNotionMutation.mutate({ reportId });
   };
 
+  // 一键复制日报内容
+  const handleCopyReport = async () => {
+    if (!report) return;
+
+    const reportDate = new Date(report.reportDate);
+    const formattedDate = reportDate.toLocaleDateString("zh-CN", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      weekday: "long",
+    });
+
+    const reportText = `【工作日报】${formattedDate}
+
+📋 今日总结
+${report.summary || "无"}
+
+✅ 工作内容
+${report.workContent || "无"}
+
+🎯 完成情况
+${report.completionStatus || "无"}
+
+⚠️ 遇到的问题
+${report.problems || "无"}
+
+📅 明日计划
+${report.tomorrowPlan || "无"}`;
+
+    try {
+      await navigator.clipboard.writeText(reportText);
+      setIsCopied(true);
+      toast.success("日报已复制到剪贴板");
+      setTimeout(() => setIsCopied(false), 2000);
+    } catch (err) {
+      toast.error("复制失败，请手动复制");
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -112,7 +154,7 @@ export default function ReportDetail() {
   return (
     <div className="space-y-6">
       {/* 头部 */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => setLocation("/history")}>
             <ArrowLeft className="h-5 w-5" />
@@ -131,7 +173,27 @@ export default function ReportDetail() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* 一键复制按钮 */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleCopyReport}
+            className="gap-2"
+          >
+            {isCopied ? (
+              <>
+                <Check className="h-4 w-4 text-green-500" />
+                已复制
+              </>
+            ) : (
+              <>
+                <Copy className="h-4 w-4" />
+                一键复制
+              </>
+            )}
+          </Button>
+
           {/* Notion 同步状态 */}
           {report.notionSyncStatus === "synced" ? (
             <Badge variant="secondary" className="gap-1">
