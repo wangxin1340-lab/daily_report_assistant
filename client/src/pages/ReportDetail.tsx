@@ -20,6 +20,7 @@ import {
   Eye,
   Copy,
   Check,
+  Lightbulb,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
@@ -36,6 +37,7 @@ export default function ReportDetail() {
     completionStatus: "",
     problems: "",
     tomorrowPlan: "",
+    businessInsights: "",
     summary: "",
   });
 
@@ -60,7 +62,6 @@ export default function ReportDetail() {
   const syncToNotionMutation = trpc.report.syncToNotion.useMutation({
     onSuccess: (data) => {
       toast.success("日报数据已准备好同步到 Notion");
-      // 这里可以进一步处理 Notion 同步
     },
     onError: (error) => {
       toast.error(error.message || "同步失败");
@@ -74,6 +75,7 @@ export default function ReportDetail() {
         completionStatus: report.completionStatus || "",
         problems: report.problems || "",
         tomorrowPlan: report.tomorrowPlan || "",
+        businessInsights: (report as any).businessInsights || "",
         summary: report.summary || "",
       });
     }
@@ -102,6 +104,8 @@ export default function ReportDetail() {
       weekday: "long",
     });
 
+    const businessInsights = (report as any).businessInsights || "无";
+
     const reportText = `【工作日报】${formattedDate}
 
 📋 今日总结
@@ -115,6 +119,9 @@ ${report.completionStatus || "无"}
 
 ⚠️ 遇到的问题
 ${report.problems || "无"}
+
+💡 业务洞察与思考
+${businessInsights}
 
 📅 明日计划
 ${report.tomorrowPlan || "无"}`;
@@ -150,6 +157,7 @@ ${report.tomorrowPlan || "无"}`;
   }
 
   const reportDate = new Date(report.reportDate);
+  const businessInsights = (report as any).businessInsights;
 
   return (
     <div className="space-y-6">
@@ -278,6 +286,34 @@ ${report.tomorrowPlan || "无"}`;
           </div>
         </CardContent>
       </Card>
+
+      {/* 业务洞察卡片 - 突出显示 */}
+      {(businessInsights && businessInsights !== "无") || isEditing ? (
+        <Card className="bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2 text-amber-700 dark:text-amber-400">
+              <Lightbulb className="h-5 w-5" />
+              业务洞察与思考
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isEditing ? (
+              <Textarea
+                value={editedReport.businessInsights}
+                onChange={(e) =>
+                  setEditedReport((prev) => ({ ...prev, businessInsights: e.target.value }))
+                }
+                rows={4}
+                placeholder="记录你对业务场景的思考和洞察..."
+              />
+            ) : (
+              <div className="prose prose-sm dark:prose-invert max-w-none">
+                <Streamdown>{businessInsights || "无"}</Streamdown>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      ) : null}
 
       {/* 详细内容 */}
       <div className="grid gap-6 md:grid-cols-2">

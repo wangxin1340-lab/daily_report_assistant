@@ -1,0 +1,1 @@
+ALTER TABLE `daily_reports` ADD `businessInsights` text;

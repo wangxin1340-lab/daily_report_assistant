@@ -15,6 +15,13 @@
       "when": 1766899477458,
       "tag": "0001_mixed_paibok",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1766902493894,
+      "tag": "0002_married_grim_reaper",
+      "breakpoints": true
     }
   ]
 }

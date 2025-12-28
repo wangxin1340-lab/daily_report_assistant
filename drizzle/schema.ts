@@ -65,6 +65,7 @@ export const dailyReports = mysqlTable("daily_reports", {
   completionStatus: text("completionStatus"), // 完成情况
   problems: text("problems"), // 遇到的问题
   tomorrowPlan: text("tomorrowPlan"), // 明日计划
+  businessInsights: text("businessInsights"), // 业务洞察和思考
   summary: text("summary"), // 总结
   // 原始 Markdown 格式日报
   markdownContent: text("markdownContent"),
