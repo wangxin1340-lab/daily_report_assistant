@@ -262,7 +262,7 @@ export default function Chat() {
         <CardHeader className="border-b py-3 px-4 flex-row items-center justify-between space-y-0">
           <CardTitle className="text-lg font-medium flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-primary" />
-            日报助手
+            日报访谈助手
           </CardTitle>
           {readyToGenerate && (
             <Button
