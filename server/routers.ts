@@ -15,6 +15,7 @@ import {
   updateUserNotionConfig,
 } from "./db";
 import { prepareNotionSyncData, generateNotionMCPParams, generateSyncInstructions } from "./notion";
+import { syncReportToNotion, fetchNotionDatabaseInfo } from "./notionSync";
 
 // 日报生成的系统提示词
 const DAILY_REPORT_SYSTEM_PROMPT = `你是一个专业的工作日报访谈助手。你的任务是通过深入的对话，帮助用户不仅整理工作内容，更要引导他们思考工作背后的业务价值和洞察。
@@ -358,29 +359,46 @@ ${updatedReport.summary}
         return { success: true };
       }),
 
-    // 同步到 Notion - 准备同步数据
+    // 同步到 Notion - 实际执行同步
     syncToNotion: protectedProcedure
       .input(z.object({ reportId: z.number() }))
       .mutation(async ({ input, ctx }) => {
         const report = await getDailyReportById(input.reportId);
-        if (!report) throw new Error("Report not found");
+        if (!report) throw new Error("日报不存在");
 
         const notionDatabaseId = ctx.user.notionDatabaseId;
         if (!notionDatabaseId) {
           throw new Error("请先在设置页面配置 Notion 数据库 ID");
         }
 
-        // 准备同步数据
-        const syncData = prepareNotionSyncData(report, notionDatabaseId);
-        const mcpParams = generateNotionMCPParams(syncData);
-        const instructions = generateSyncInstructions(syncData);
+        // 获取 data_source_id（如果用户提供的是 database_id）
+        const dbInfo = await fetchNotionDatabaseInfo(notionDatabaseId);
+        if (!dbInfo.success) {
+          throw new Error(dbInfo.error || "获取 Notion 数据库信息失败");
+        }
+
+        const dataSourceId = dbInfo.dataSourceId || notionDatabaseId;
+
+        // 执行同步
+        const syncResult = await syncReportToNotion(report, dataSourceId);
+        
+        if (!syncResult.success) {
+          // 更新同步状态为失败
+          await updateDailyReportNotionSync(input.reportId, "", "failed");
+          throw new Error(syncResult.error || "同步到 Notion 失败");
+        }
+
+        // 更新同步状态为成功
+        await updateDailyReportNotionSync(
+          input.reportId, 
+          syncResult.pageId || "", 
+          "synced"
+        );
 
         return {
-          reportId: report.id,
-          notionDatabaseId,
-          syncData,
-          mcpParams,
-          instructions,
+          success: true,
+          pageId: syncResult.pageId,
+          pageUrl: syncResult.pageUrl,
         };
       }),
 

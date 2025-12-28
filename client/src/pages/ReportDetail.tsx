@@ -61,10 +61,11 @@ export default function ReportDetail() {
 
   const syncToNotionMutation = trpc.report.syncToNotion.useMutation({
     onSuccess: (data) => {
-      toast.success("日报数据已准备好同步到 Notion");
+      toast.success("日报已成功同步到 Notion");
+      refetch(); // 刷新页面以更新同步状态
     },
     onError: (error) => {
-      toast.error(error.message || "同步失败");
+      toast.error(error.message || "同步失败，请检查 Notion 数据库 ID 是否正确");
     },
   });
 
