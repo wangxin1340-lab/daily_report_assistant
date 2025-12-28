@@ -217,6 +217,17 @@ export async function updateDailyReportNotionSync(
   }).where(eq(dailyReports.id, id));
 }
 
+export async function deleteDailyReport(id: number, userId: number): Promise<boolean> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  // 确保只能删除自己的日报
+  const result = await db.delete(dailyReports)
+    .where(and(eq(dailyReports.id, id), eq(dailyReports.userId, userId)));
+  
+  return result[0].affectedRows > 0;
+}
+
 // ============ Audio File Functions ============
 
 export async function createAudioFile(data: InsertAudioFile): Promise<AudioFile> {

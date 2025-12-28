@@ -1,4 +1,3 @@
-import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +15,17 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { trpc } from "@/lib/trpc";
 import {
   Calendar,
@@ -30,9 +40,11 @@ import {
   ArrowUpDown,
   X,
   CalendarDays,
+  Trash2,
 } from "lucide-react";
 import { useState, useMemo } from "react";
 import { useLocation } from "wouter";
+import { toast } from "sonner";
 
 type SyncStatus = "all" | "synced" | "pending" | "failed";
 type SortBy = "date_desc" | "date_asc" | "created_desc" | "created_asc";
@@ -49,7 +61,18 @@ export default function History() {
   // 排序状态
   const [sortBy, setSortBy] = useState<SortBy>("date_desc");
 
-  const { data: reports, isLoading } = trpc.report.list.useQuery();
+  const { data: reports, isLoading, refetch } = trpc.report.list.useQuery();
+  
+  // 删除日报
+  const deleteMutation = trpc.report.delete.useMutation({
+    onSuccess: () => {
+      toast.success("日报已删除");
+      refetch();
+    },
+    onError: (error) => {
+      toast.error(error.message || "删除失败");
+    },
+  });
 
   // 计算是否有活跃的筛选条件
   const hasActiveFilters = syncStatusFilter !== "all" || startDate || endDate;
@@ -80,12 +103,7 @@ export default function History() {
 
     // 同步状态过滤
     if (syncStatusFilter !== "all") {
-      result = result.filter((report) => {
-        if (syncStatusFilter === "pending") {
-          return !report.notionSyncStatus || report.notionSyncStatus === "pending";
-        }
-        return report.notionSyncStatus === syncStatusFilter;
-      });
+      result = result.filter((report) => report.notionSyncStatus === syncStatusFilter);
     }
 
     // 日期范围过滤
@@ -119,20 +137,17 @@ export default function History() {
     return result;
   }, [reports, searchQuery, syncStatusFilter, startDate, endDate, sortBy]);
 
-  // 按日期分组
+  // 按月份分组
   const groupedReports = useMemo(() => {
     const groups: Record<string, typeof filteredAndSortedReports> = {};
-
     filteredAndSortedReports.forEach((report) => {
       const date = new Date(report.reportDate);
       const monthKey = `${date.getFullYear()}年${date.getMonth() + 1}月`;
-
       if (!groups[monthKey]) {
         groups[monthKey] = [];
       }
       groups[monthKey].push(report);
     });
-
     return groups;
   }, [filteredAndSortedReports]);
 
@@ -140,7 +155,7 @@ export default function History() {
     switch (status) {
       case "synced":
         return (
-          <Badge variant="secondary" className="gap-1 text-green-600">
+          <Badge variant="default" className="bg-green-500/10 text-green-600 border-green-200 gap-1">
             <CheckCircle className="h-3 w-3" />
             已同步
           </Badge>
@@ -160,6 +175,10 @@ export default function History() {
           </Badge>
         );
     }
+  };
+
+  const handleDelete = (e: React.MouseEvent, reportId: number) => {
+    e.stopPropagation(); // 阻止点击事件冒泡到卡片
   };
 
   if (isLoading) {
@@ -252,42 +271,62 @@ export default function History() {
               {/* 日期范围筛选 */}
               <div className="space-y-2">
                 <Label className="text-sm">日期范围</Label>
-                <div className="flex gap-2 items-center">
-                  <Input
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    className="flex-1"
-                  />
-                  <span className="text-muted-foreground">至</span>
-                  <Input
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    className="flex-1"
-                  />
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-xs text-muted-foreground">开始日期</Label>
+                    <Input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="h-9"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">结束日期</Label>
+                    <Input
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      className="h-9"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
           </PopoverContent>
         </Popover>
 
-        {/* 排序选择 */}
-        <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortBy)}>
-          <SelectTrigger className="w-[160px] shrink-0">
-            <ArrowUpDown className="h-4 w-4 mr-2" />
-            <SelectValue placeholder="排序方式" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="date_desc">日期 (新→旧)</SelectItem>
-            <SelectItem value="date_asc">日期 (旧→新)</SelectItem>
-            <SelectItem value="created_desc">创建时间 (新→旧)</SelectItem>
-            <SelectItem value="created_asc">创建时间 (旧→新)</SelectItem>
-          </SelectContent>
-        </Select>
+        {/* 排序按钮 */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="gap-2 shrink-0">
+              <ArrowUpDown className="h-4 w-4" />
+              排序
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-56" align="end">
+            <div className="space-y-2">
+              <h4 className="font-medium mb-3">排序方式</h4>
+              <Select
+                value={sortBy}
+                onValueChange={(value) => setSortBy(value as SortBy)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="date_desc">日期（最新优先）</SelectItem>
+                  <SelectItem value="date_asc">日期（最早优先）</SelectItem>
+                  <SelectItem value="created_desc">创建时间（最新优先）</SelectItem>
+                  <SelectItem value="created_asc">创建时间（最早优先）</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
 
-      {/* 活跃筛选标签 */}
+      {/* 活跃筛选条件标签 */}
       {hasActiveFilters && (
         <div className="flex flex-wrap gap-2">
           {syncStatusFilter !== "all" && (
@@ -394,7 +433,43 @@ export default function History() {
                               {report.summary || "暂无总结"}
                             </p>
                           </div>
-                          <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
+                          <div className="flex items-center gap-2 shrink-0">
+                            {/* 删除按钮 */}
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>确认删除</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    确定要删除 {date.toLocaleDateString("zh-CN")} 的日报吗？此操作无法撤销。
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>取消</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    onClick={() => deleteMutation.mutate({ id: report.id })}
+                                  >
+                                    {deleteMutation.isPending ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      "删除"
+                                    )}
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                            <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                          </div>
                         </div>
                       </CardContent>
                     </Card>

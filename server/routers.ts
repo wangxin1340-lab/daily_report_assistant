@@ -10,7 +10,7 @@ import { nanoid } from "nanoid";
 import {
   createSession, getSessionById, getUserSessions, updateSessionStatus, updateSessionTitle,
   createMessage, getSessionMessages,
-  createDailyReport, getDailyReportById, getUserDailyReports, updateDailyReport, updateDailyReportNotionSync,
+  createDailyReport, getDailyReportById, getUserDailyReports, updateDailyReport, updateDailyReportNotionSync, deleteDailyReport,
   createAudioFile, updateAudioTranscription,
   updateUserNotionConfig,
 } from "./db";
@@ -411,6 +411,17 @@ ${updatedReport.summary}
       }))
       .mutation(async ({ input }) => {
         await updateDailyReportNotionSync(input.reportId, input.notionPageId, input.status);
+        return { success: true };
+      }),
+
+    // 删除日报
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const deleted = await deleteDailyReport(input.id, ctx.user.id);
+        if (!deleted) {
+          throw new Error("日报不存在或无权删除");
+        }
         return { success: true };
       }),
   }),
