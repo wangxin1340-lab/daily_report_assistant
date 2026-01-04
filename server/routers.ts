@@ -13,6 +13,10 @@ import {
   createDailyReport, getDailyReportById, getUserDailyReports, updateDailyReport, updateDailyReportNotionSync, deleteDailyReport,
   createAudioFile, updateAudioTranscription,
   updateUserNotionConfig,
+  createOkrPeriod, getOkrPeriodsByUser, getActiveOkrPeriod, updateOkrPeriod,
+  createObjective, getObjectivesByPeriod, updateObjective, deleteObjective,
+  createKeyResult, getKeyResultsByObjective, updateKeyResult, deleteKeyResult,
+  createWeeklyReport, getWeeklyReportsByUser, getWeeklyReportById, updateWeeklyReport, deleteWeeklyReport,
 } from "./db";
 import { prepareNotionSyncData, generateNotionMCPParams, generateSyncInstructions } from "./notion";
 import { syncReportToNotion, fetchNotionDatabaseInfo } from "./notionSync";
@@ -489,6 +493,414 @@ ${updatedReport.summary}
       .mutation(async ({ input, ctx }) => {
         await updateUserNotionConfig(ctx.user.id, input.notionDatabaseId);
         return { success: true };
+      }),
+  }),
+
+  // OKR 管理
+  okr: router({
+    // 创建 OKR 周期
+    createPeriod: protectedProcedure
+      .input(z.object({
+        title: z.string(),
+        startDate: z.date(),
+        endDate: z.date(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const periodId = await createOkrPeriod({
+          userId: ctx.user.id,
+          ...input,
+        });
+        return { periodId };
+      }),
+
+    // 获取用户的所有 OKR 周期
+    listPeriods: protectedProcedure
+      .query(async ({ ctx }) => {
+        return getOkrPeriodsByUser(ctx.user.id);
+      }),
+
+    // 获取当前活跃的 OKR 周期
+    getActivePeriod: protectedProcedure
+      .query(async ({ ctx }) => {
+        return getActiveOkrPeriod(ctx.user.id);
+      }),
+
+    // 更新 OKR 周期
+    updatePeriod: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        title: z.string().optional(),
+        startDate: z.date().optional(),
+        endDate: z.date().optional(),
+        status: z.enum(["active", "completed", "archived"]).optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { id, ...updates } = input;
+        await updateOkrPeriod(id, ctx.user.id, updates);
+        return { success: true };
+      }),
+
+    // 创建 Objective
+    createObjective: protectedProcedure
+      .input(z.object({
+        periodId: z.number(),
+        title: z.string(),
+        description: z.string().optional(),
+        order: z.number().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const objectiveId = await createObjective({
+          userId: ctx.user.id,
+          ...input,
+        });
+        return { objectiveId };
+      }),
+
+    // 获取某个周期的所有 Objectives
+    listObjectives: protectedProcedure
+      .input(z.object({ periodId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        return getObjectivesByPeriod(input.periodId, ctx.user.id);
+      }),
+
+    // 更新 Objective
+    updateObjective: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        title: z.string().optional(),
+        description: z.string().optional(),
+        order: z.number().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { id, ...updates } = input;
+        await updateObjective(id, ctx.user.id, updates);
+        return { success: true };
+      }),
+
+    // 删除 Objective
+    deleteObjective: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        await deleteObjective(input.id, ctx.user.id);
+        return { success: true };
+      }),
+
+    // 创建 Key Result
+    createKeyResult: protectedProcedure
+      .input(z.object({
+        objectiveId: z.number(),
+        title: z.string(),
+        description: z.string().optional(),
+        targetValue: z.string().optional(),
+        currentValue: z.string().optional(),
+        unit: z.string().optional(),
+        order: z.number().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const keyResultId = await createKeyResult({
+          userId: ctx.user.id,
+          ...input,
+        });
+        return { keyResultId };
+      }),
+
+    // 获取某个 Objective 的所有 Key Results
+    listKeyResults: protectedProcedure
+      .input(z.object({ objectiveId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        return getKeyResultsByObjective(input.objectiveId, ctx.user.id);
+      }),
+
+    // 更新 Key Result
+    updateKeyResult: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        title: z.string().optional(),
+        description: z.string().optional(),
+        targetValue: z.string().optional(),
+        currentValue: z.string().optional(),
+        unit: z.string().optional(),
+        order: z.number().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { id, ...updates } = input;
+        await updateKeyResult(id, ctx.user.id, updates);
+        return { success: true };
+      }),
+
+    // 删除 Key Result
+    deleteKeyResult: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        await deleteKeyResult(input.id, ctx.user.id);
+        return { success: true };
+      }),
+
+    // 获取完整的 OKR 结构（包含 Objectives 和 Key Results）
+    getFullOkr: protectedProcedure
+      .input(z.object({ periodId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        const objectives = await getObjectivesByPeriod(input.periodId, ctx.user.id);
+        const fullOkr = await Promise.all(
+          objectives.map(async (obj) => {
+            const keyResults = await getKeyResultsByObjective(obj.id, ctx.user.id);
+            return { ...obj, keyResults };
+          })
+        );
+        return fullOkr;
+      }),
+  }),
+
+  // 周报管理
+  weeklyReport: router({
+    // 生成周报
+    generate: protectedProcedure
+      .input(z.object({
+        weekStartDate: z.date(),
+        weekEndDate: z.date(),
+        periodId: z.number().optional(),
+        dailyReportIds: z.array(z.number()),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        // 获取选中的日报
+        const dailyReportsData = await Promise.all(
+          input.dailyReportIds.map(id => getDailyReportById(id))
+        );
+        const dailyReports = dailyReportsData.filter(r => r !== undefined);
+
+        // 获取 OKR 数据
+        let okrData = null;
+        if (input.periodId) {
+          const objectives = await getObjectivesByPeriod(input.periodId, ctx.user.id);
+          okrData = await Promise.all(
+            objectives.map(async (obj) => {
+              const keyResults = await getKeyResultsByObjective(obj.id, ctx.user.id);
+              return { ...obj, keyResults };
+            })
+          );
+        }
+
+        // 使用 LLM 生成周报
+        const prompt = `你是一个专业的工作周报生成助手。根据用户提供的日报和 OKR 信息，生成一份结构化的周报。
+
+日报内容：
+${dailyReports.map((r, i) => `
+### 日报 ${i + 1} (${new Date(r.reportDate).toLocaleDateString()})
+**工作内容：**
+${r.workContent || '无'}
+
+**业务洞察：**
+${r.businessInsights || '无'}
+
+**遇到的问题：**
+${r.problems || '无'}
+`).join('\n')}
+
+${okrData ? `OKR 信息：
+${okrData.map((obj, i) => `
+### Objective ${i + 1}: ${obj.title}
+${obj.description ? `描述：${obj.description}` : ''}
+
+**Key Results:**
+${obj.keyResults.map((kr, j) => `${j + 1}. ${kr.title}
+   - 目标：${kr.targetValue || '未设置'} ${kr.unit || ''}
+   - 当前：${kr.currentValue || '未更新'} ${kr.unit || ''}
+   ${kr.description ? `- 描述：${kr.description}` : ''}`).join('\n')}
+`).join('\n')}` : '未关联 OKR'}
+
+请生成一份周报，包含以下内容：
+1. **本周总结**：简要概括本周工作
+2. **OKR 进展**：分析日报中的工作与哪些 OKR 相关，并说明进展
+3. **主要成果**：列举本周完成的重要工作
+4. **问题和挑战**：总结遇到的问题
+5. **下周计划**：基于 OKR 和当前进展规划下周工作
+
+请用 JSON 格式返回，包含以下字段：
+- summary: 本周总结
+- okrProgress: OKR 进展分析（数组，每个元素包含 objectiveId, objectiveTitle, progress, relatedWork）
+- achievements: 主要成果（列表）
+- problems: 问题和挑战
+- nextWeekPlan: 下周计划
+`;
+
+        const response = await invokeLLM({
+          messages: [
+            { role: "system", content: "你是一个专业的工作周报生成助手。" },
+            { role: "user", content: prompt },
+          ],
+          response_format: {
+            type: "json_schema",
+            json_schema: {
+              name: "weekly_report",
+              strict: true,
+              schema: {
+                type: "object",
+                properties: {
+                  summary: { type: "string" },
+                  okrProgress: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        objectiveId: { type: "number" },
+                        objectiveTitle: { type: "string" },
+                        progress: { type: "string" },
+                        relatedWork: { type: "string" },
+                      },
+                      required: ["objectiveId", "objectiveTitle", "progress", "relatedWork"],
+                      additionalProperties: false,
+                    },
+                  },
+                  achievements: {
+                    type: "array",
+                    items: { type: "string" },
+                  },
+                  problems: { type: "string" },
+                  nextWeekPlan: { type: "string" },
+                },
+                required: ["summary", "okrProgress", "achievements", "problems", "nextWeekPlan"],
+                additionalProperties: false,
+              },
+            },
+          },
+        });
+
+        const content = response.choices[0]?.message?.content;
+        if (!content || typeof content !== 'string') {
+          throw new Error("生成周报失败");
+        }
+
+        const reportData = JSON.parse(content);
+
+        // 生成 Markdown 内容
+        const markdownContent = `# 工作周报
+
+**周期：** ${new Date(input.weekStartDate).toLocaleDateString()} - ${new Date(input.weekEndDate).toLocaleDateString()}
+
+## 本周总结
+
+${reportData.summary}
+
+## OKR 进展
+
+${reportData.okrProgress.map((item: any) => `### ${item.objectiveTitle}
+
+**进展：** ${item.progress}
+
+**相关工作：**
+${item.relatedWork}
+`).join('\n')}
+
+## 主要成果
+
+${reportData.achievements.map((item: string, i: number) => `${i + 1}. ${item}`).join('\n')}
+
+## 问题和挑战
+
+${reportData.problems}
+
+## 下周计划
+
+${reportData.nextWeekPlan}
+`;
+
+        // 保存周报
+        const title = `工作周报 ${new Date(input.weekStartDate).toLocaleDateString()} - ${new Date(input.weekEndDate).toLocaleDateString()}`;
+        const reportId = await createWeeklyReport({
+          userId: ctx.user.id,
+          periodId: input.periodId,
+          weekStartDate: input.weekStartDate,
+          weekEndDate: input.weekEndDate,
+          title,
+          summary: reportData.summary,
+          okrProgress: reportData.okrProgress,
+          achievements: reportData.achievements.join('\n'),
+          problems: reportData.problems,
+          nextWeekPlan: reportData.nextWeekPlan,
+          markdownContent,
+          dailyReportIds: input.dailyReportIds,
+        });
+
+        return { reportId, ...reportData, markdownContent };
+      }),
+
+    // 获取周报列表
+    list: protectedProcedure
+      .query(async ({ ctx }) => {
+        return getWeeklyReportsByUser(ctx.user.id);
+      }),
+
+    // 获取周报详情
+    get: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input, ctx }) => {
+        return getWeeklyReportById(input.id, ctx.user.id);
+      }),
+
+    // 更新周报
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        summary: z.string().optional(),
+        achievements: z.string().optional(),
+        problems: z.string().optional(),
+        nextWeekPlan: z.string().optional(),
+        markdownContent: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { id, ...updates } = input;
+        await updateWeeklyReport(id, ctx.user.id, updates);
+        return { success: true };
+      }),
+
+    // 删除周报
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        await deleteWeeklyReport(input.id, ctx.user.id);
+        return { success: true };
+      }),
+
+    // 同步周报到 Notion
+    syncToNotion: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const report = await getWeeklyReportById(input.id, ctx.user.id);
+        if (!report) {
+          throw new Error("周报不存在");
+        }
+
+        if (!ctx.user.notionDatabaseId) {
+          throw new Error("请先在设置中配置 Notion 数据库 ID");
+        }
+
+        // 构造一个类似 DailyReport 的对象用于 Notion 同步
+        const reportForNotion: any = {
+          reportDate: report.weekStartDate,
+          summary: report.summary,
+          workContent: report.achievements,
+          businessInsights: report.okrProgress ? JSON.stringify(report.okrProgress) : '',
+          problems: report.problems,
+          tomorrowPlan: report.nextWeekPlan,
+          markdownContent: report.markdownContent,
+        };
+        
+        const syncResult = await syncReportToNotion(
+          reportForNotion,
+          ctx.user.notionDatabaseId
+        );
+
+        await updateWeeklyReport(input.id, ctx.user.id, {
+          notionPageId: syncResult.pageId,
+          notionSyncedAt: new Date(),
+          notionSyncStatus: "synced",
+        });
+
+        return {
+          success: true,
+          pageId: syncResult.pageId,
+          pageUrl: syncResult.pageUrl,
+        };
       }),
   }),
 });

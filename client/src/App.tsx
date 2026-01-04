@@ -9,6 +9,8 @@ import Chat from "./pages/Chat";
 import History from "./pages/History";
 import ReportDetail from "./pages/ReportDetail";
 import Settings from "./pages/Settings";
+import OKR from "./pages/OKR";
+import WeeklyReport from "./pages/WeeklyReport";
 
 function Router() {
   return (
@@ -17,6 +19,8 @@ function Router() {
         <Route path="/" component={Chat} />
         <Route path="/history" component={History} />
         <Route path="/report/:id" component={ReportDetail} />
+        <Route path="/okr" component={OKR} />
+        <Route path="/weekly-report" component={WeeklyReport} />
         <Route path="/settings" component={Settings} />
         <Route path="/404" component={NotFound} />
         <Route component={NotFound} />

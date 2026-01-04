@@ -5,7 +5,11 @@ import {
   sessions, InsertSession, Session,
   messages, InsertMessage, Message,
   dailyReports, InsertDailyReport, DailyReport,
-  audioFiles, InsertAudioFile, AudioFile
+  audioFiles, InsertAudioFile, AudioFile,
+  okrPeriods, InsertOkrPeriod, OkrPeriod,
+  objectives, InsertObjective, Objective,
+  keyResults, InsertKeyResult, KeyResult,
+  weeklyReports, InsertWeeklyReport, WeeklyReport
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -256,4 +260,177 @@ export async function getAudioFileById(id: number): Promise<AudioFile | undefine
   
   const [file] = await db.select().from(audioFiles).where(eq(audioFiles.id, id));
   return file;
+}
+
+// ============ OKR Period Functions ============
+
+export async function createOkrPeriod(period: InsertOkrPeriod): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const result = await db.insert(okrPeriods).values(period);
+  return Number(result[0].insertId);
+}
+
+export async function getOkrPeriodsByUser(userId: number): Promise<OkrPeriod[]> {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return db.select().from(okrPeriods)
+    .where(eq(okrPeriods.userId, userId))
+    .orderBy(desc(okrPeriods.startDate));
+}
+
+export async function getActiveOkrPeriod(userId: number): Promise<OkrPeriod | undefined> {
+  const db = await getDb();
+  if (!db) return undefined;
+  
+  const result = await db.select().from(okrPeriods)
+    .where(and(
+      eq(okrPeriods.userId, userId),
+      eq(okrPeriods.status, "active")
+    ))
+    .orderBy(desc(okrPeriods.startDate))
+    .limit(1);
+  
+  return result[0];
+}
+
+export async function updateOkrPeriod(id: number, userId: number, updates: Partial<InsertOkrPeriod>): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.update(okrPeriods)
+    .set(updates)
+    .where(and(eq(okrPeriods.id, id), eq(okrPeriods.userId, userId)));
+}
+
+// ============ Objective Functions ============
+
+export async function createObjective(objective: InsertObjective): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const result = await db.insert(objectives).values(objective);
+  return Number(result[0].insertId);
+}
+
+export async function getObjectivesByPeriod(periodId: number, userId: number): Promise<Objective[]> {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return db.select().from(objectives)
+    .where(and(
+      eq(objectives.periodId, periodId),
+      eq(objectives.userId, userId)
+    ))
+    .orderBy(objectives.order);
+}
+
+export async function updateObjective(id: number, userId: number, updates: Partial<InsertObjective>): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.update(objectives)
+    .set(updates)
+    .where(and(eq(objectives.id, id), eq(objectives.userId, userId)));
+}
+
+export async function deleteObjective(id: number, userId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  // 先删除关联的 Key Results
+  await db.delete(keyResults)
+    .where(and(eq(keyResults.objectiveId, id), eq(keyResults.userId, userId)));
+  
+  // 再删除 Objective
+  await db.delete(objectives)
+    .where(and(eq(objectives.id, id), eq(objectives.userId, userId)));
+}
+
+// ============ Key Result Functions ============
+
+export async function createKeyResult(keyResult: InsertKeyResult): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const result = await db.insert(keyResults).values(keyResult);
+  return Number(result[0].insertId);
+}
+
+export async function getKeyResultsByObjective(objectiveId: number, userId: number): Promise<KeyResult[]> {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return db.select().from(keyResults)
+    .where(and(
+      eq(keyResults.objectiveId, objectiveId),
+      eq(keyResults.userId, userId)
+    ))
+    .orderBy(keyResults.order);
+}
+
+export async function updateKeyResult(id: number, userId: number, updates: Partial<InsertKeyResult>): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.update(keyResults)
+    .set(updates)
+    .where(and(eq(keyResults.id, id), eq(keyResults.userId, userId)));
+}
+
+export async function deleteKeyResult(id: number, userId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.delete(keyResults)
+    .where(and(eq(keyResults.id, id), eq(keyResults.userId, userId)));
+}
+
+// ============ Weekly Report Functions ============
+
+export async function createWeeklyReport(report: InsertWeeklyReport): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const result = await db.insert(weeklyReports).values(report);
+  return Number(result[0].insertId);
+}
+
+export async function getWeeklyReportsByUser(userId: number): Promise<WeeklyReport[]> {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return db.select().from(weeklyReports)
+    .where(eq(weeklyReports.userId, userId))
+    .orderBy(desc(weeklyReports.weekStartDate));
+}
+
+export async function getWeeklyReportById(id: number, userId: number): Promise<WeeklyReport | undefined> {
+  const db = await getDb();
+  if (!db) return undefined;
+  
+  const result = await db.select().from(weeklyReports)
+    .where(and(eq(weeklyReports.id, id), eq(weeklyReports.userId, userId)))
+    .limit(1);
+  
+  return result[0];
+}
+
+export async function updateWeeklyReport(id: number, userId: number, updates: Partial<InsertWeeklyReport>): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.update(weeklyReports)
+    .set(updates)
+    .where(and(eq(weeklyReports.id, id), eq(weeklyReports.userId, userId)));
+}
+
+export async function deleteWeeklyReport(id: number, userId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.delete(weeklyReports)
+    .where(and(eq(weeklyReports.id, id), eq(weeklyReports.userId, userId)));
 }

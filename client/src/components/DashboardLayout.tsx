@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/sidebar";
 import { getLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { MessageSquare, History, Settings, LogOut, PanelLeft, FileText } from "lucide-react";
+import { MessageSquare, History, Settings, LogOut, PanelLeft, FileText, Target, BarChart3 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
@@ -30,6 +30,8 @@ import { Button } from "./ui/button";
 const menuItems = [
   { icon: MessageSquare, label: "写日报", path: "/" },
   { icon: History, label: "历史日报", path: "/history" },
+  { icon: Target, label: "OKR 管理", path: "/okr" },
+  { icon: BarChart3, label: "生成周报", path: "/weekly-report" },
   { icon: Settings, label: "设置", path: "/settings" },
 ];
 

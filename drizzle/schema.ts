@@ -101,3 +101,87 @@ export const audioFiles = mysqlTable("audio_files", {
 
 export type AudioFile = typeof audioFiles.$inferSelect;
 export type InsertAudioFile = typeof audioFiles.$inferInsert;
+
+/**
+ * OKR 周期表 - 存储双月 OKR 周期
+ */
+export const okrPeriods = mysqlTable("okr_periods", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  title: varchar("title", { length: 255 }).notNull(), // 例如："2025 Q1-Q2 OKR"
+  startDate: timestamp("startDate").notNull(),
+  endDate: timestamp("endDate").notNull(),
+  status: mysqlEnum("status", ["active", "completed", "archived"]).default("active").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type OkrPeriod = typeof okrPeriods.$inferSelect;
+export type InsertOkrPeriod = typeof okrPeriods.$inferInsert;
+
+/**
+ * Objectives 表 - 存储目标
+ */
+export const objectives = mysqlTable("objectives", {
+  id: int("id").autoincrement().primaryKey(),
+  periodId: int("periodId").notNull(),
+  userId: int("userId").notNull(),
+  title: text("title").notNull(),
+  description: text("description"),
+  order: int("order").default(0).notNull(), // 排序
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Objective = typeof objectives.$inferSelect;
+export type InsertObjective = typeof objectives.$inferInsert;
+
+/**
+ * Key Results 表 - 存储关键结果
+ */
+export const keyResults = mysqlTable("key_results", {
+  id: int("id").autoincrement().primaryKey(),
+  objectiveId: int("objectiveId").notNull(),
+  userId: int("userId").notNull(),
+  title: text("title").notNull(),
+  description: text("description"),
+  targetValue: varchar("targetValue", { length: 255 }), // 目标值（如 "100%"、"50个"）
+  currentValue: varchar("currentValue", { length: 255 }), // 当前值
+  unit: varchar("unit", { length: 64 }), // 单位
+  order: int("order").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type KeyResult = typeof keyResults.$inferSelect;
+export type InsertKeyResult = typeof keyResults.$inferInsert;
+
+/**
+ * 周报表 - 存储生成的周报
+ */
+export const weeklyReports = mysqlTable("weekly_reports", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  periodId: int("periodId"), // 关联的 OKR 周期
+  weekStartDate: timestamp("weekStartDate").notNull(),
+  weekEndDate: timestamp("weekEndDate").notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  // 周报内容
+  summary: text("summary"), // 本周总结
+  okrProgress: json("okrProgress"), // OKR 进展（JSON 格式）
+  achievements: text("achievements"), // 主要成果
+  problems: text("problems"), // 问题和挑战
+  nextWeekPlan: text("nextWeekPlan"), // 下周计划
+  markdownContent: text("markdownContent"), // 完整 Markdown 内容
+  // 关联的日报 ID 列表
+  dailyReportIds: json("dailyReportIds"), // 数组格式：[1, 2, 3]
+  // Notion 同步状态
+  notionPageId: varchar("notionPageId", { length: 64 }),
+  notionSyncedAt: timestamp("notionSyncedAt"),
+  notionSyncStatus: mysqlEnum("notionSyncStatus", ["pending", "synced", "failed"]).default("pending"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type WeeklyReport = typeof weeklyReports.$inferSelect;
+export type InsertWeeklyReport = typeof weeklyReports.$inferInsert;
