@@ -19,7 +19,7 @@ import {
   createWeeklyReport, getWeeklyReportsByUser, getWeeklyReportById, updateWeeklyReport, deleteWeeklyReport,
 } from "./db";
 import { prepareNotionSyncData, generateNotionMCPParams, generateSyncInstructions } from "./notion";
-import { syncReportToNotion, fetchNotionDatabaseInfo } from "./notionSync";
+import { syncReportToNotion, syncWeeklyReportToNotion, fetchNotionDatabaseInfo } from "./notionSync";
 
 // 日报生成的系统提示词
 const DAILY_REPORT_SYSTEM_PROMPT = `你是一个专业的工作日报访谈助手。你的任务是通过深入的对话，帮助用户不仅整理工作内容，更要引导他们思考工作背后的业务价值和洞察。
@@ -882,19 +882,9 @@ ${reportData.nextWeekPlan}
           throw new Error("请先在设置中配置周报 Notion 数据库 ID");
         }
 
-        // 构造一个类似 DailyReport 的对象用于 Notion 同步
-        const reportForNotion: any = {
-          reportDate: report.weekStartDate,
-          summary: report.summary,
-          workContent: report.achievements,
-          businessInsights: report.okrProgress ? JSON.stringify(report.okrProgress) : '',
-          problems: report.problems,
-          tomorrowPlan: report.nextWeekPlan,
-          markdownContent: report.markdownContent,
-        };
-        
-        const syncResult = await syncReportToNotion(
-          reportForNotion,
+        // 使用专门的周报同步函数
+        const syncResult = await syncWeeklyReportToNotion(
+          report,
           ctx.user.notionWeeklyReportDatabaseId!
         );
 

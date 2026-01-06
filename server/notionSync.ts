@@ -3,7 +3,7 @@
  * 支持同步到数据库或页面
  */
 
-import { DailyReport } from "../drizzle/schema";
+import { DailyReport, WeeklyReport } from "../drizzle/schema";
 
 const NOTION_API_BASE = "https://api.notion.com/v1";
 const NOTION_VERSION = "2022-06-28";
@@ -361,6 +361,264 @@ export async function fetchNotionDatabaseInfo(notionId: string): Promise<{
     return {
       success: false,
       error: error.message || "获取信息失败",
+    };
+  }
+}
+
+/**
+ * 构建周报内容块
+ */
+function buildWeeklyReportBlocks(report: WeeklyReport): any[] {
+  const weekStart = new Date(report.weekStartDate);
+  const weekEnd = new Date(report.weekEndDate);
+  
+  // 将长文本分割成多个段落（Notion 单个文本块有2000字符限制）
+  const splitText = (text: string, maxLen: number = 1800): string[] => {
+    if (!text || text.length <= maxLen) return [text || "无"];
+    const parts: string[] = [];
+    let remaining = text;
+    while (remaining.length > 0) {
+      parts.push(remaining.slice(0, maxLen));
+      remaining = remaining.slice(maxLen);
+    }
+    return parts;
+  };
+  
+  const createParagraphBlocks = (text: string) => {
+    return splitText(text).map(part => ({
+      object: "block",
+      type: "paragraph",
+      paragraph: {
+        rich_text: [{ type: "text", text: { content: part } }],
+      },
+    }));
+  };
+  
+  const blocks: any[] = [
+    // 周报标题
+    {
+      object: "block",
+      type: "heading_1",
+      heading_1: {
+        rich_text: [{ type: "text", text: { content: `📅 ${report.title}` } }],
+      },
+    },
+    // 周期
+    {
+      object: "block",
+      type: "callout",
+      callout: {
+        rich_text: [{ 
+          type: "text", 
+          text: { 
+            content: `周期：${weekStart.toLocaleDateString('zh-CN')} - ${weekEnd.toLocaleDateString('zh-CN')}` 
+          } 
+        }],
+        icon: { emoji: "📆" },
+      },
+    },
+    // 本周总结
+    {
+      object: "block",
+      type: "heading_2",
+      heading_2: {
+        rich_text: [{ type: "text", text: { content: "📋 本周总结" } }],
+      },
+    },
+    ...createParagraphBlocks(report.summary || "无"),
+  ];
+  
+  // OKR 进展
+  if (report.okrProgress) {
+    blocks.push({
+      object: "block",
+      type: "heading_2",
+      heading_2: {
+        rich_text: [{ type: "text", text: { content: "🎯 OKR 进展" } }],
+      },
+    });
+    
+    try {
+      const okrData = typeof report.okrProgress === 'string' 
+        ? JSON.parse(report.okrProgress) 
+        : report.okrProgress;
+      
+      if (Array.isArray(okrData)) {
+        okrData.forEach((obj: any) => {
+          // Objective 标题
+          blocks.push({
+            object: "block",
+            type: "heading_3",
+            heading_3: {
+              rich_text: [{ type: "text", text: { content: `▶️ ${obj.title}` } }],
+            },
+          });
+          
+          // Key Results
+          if (obj.keyResults && Array.isArray(obj.keyResults)) {
+            obj.keyResults.forEach((kr: any) => {
+              blocks.push({
+                object: "block",
+                type: "bulleted_list_item",
+                bulleted_list_item: {
+                  rich_text: [{ 
+                    type: "text", 
+                    text: { content: `${kr.title}${kr.progress ? ` - ${kr.progress}` : ''}` } 
+                  }],
+                },
+              });
+            });
+          }
+        });
+      } else {
+        blocks.push(...createParagraphBlocks(JSON.stringify(okrData, null, 2)));
+      }
+    } catch (e) {
+      blocks.push(...createParagraphBlocks(String(report.okrProgress)));
+    }
+  }
+  
+  // 主要成果
+  blocks.push({
+    object: "block",
+    type: "heading_2",
+    heading_2: {
+      rich_text: [{ type: "text", text: { content: "✅ 主要成果" } }],
+    },
+  });
+  blocks.push(...createParagraphBlocks(report.achievements || "无"));
+  
+  // 问题和挑战
+  blocks.push({
+    object: "block",
+    type: "heading_2",
+    heading_2: {
+      rich_text: [{ type: "text", text: { content: "⚠️ 问题和挑战" } }],
+    },
+  });
+  blocks.push(...createParagraphBlocks(report.problems || "无"));
+  
+  // 下周计划
+  blocks.push({
+    object: "block",
+    type: "heading_2",
+    heading_2: {
+      rich_text: [{ type: "text", text: { content: "📅 下周计划" } }],
+    },
+  });
+  blocks.push(...createParagraphBlocks(report.nextWeekPlan || "无"));
+  
+  // 分隔线
+  blocks.push({
+    object: "block",
+    type: "divider",
+    divider: {},
+  });
+  
+  return blocks;
+}
+
+/**
+ * 同步周报到 Notion 数据库（创建新条目）
+ */
+async function syncWeeklyReportToDatabase(report: WeeklyReport, databaseId: string): Promise<NotionSyncResult> {
+  const weekStart = new Date(report.weekStartDate);
+  const weekEnd = new Date(report.weekEndDate);
+  
+  // 构建页面属性
+  const properties: Record<string, any> = {
+    "Name": {
+      title: [
+        {
+          text: {
+            content: report.title,
+          },
+        },
+      ],
+    },
+  };
+  
+  // 构建页面内容
+  const children = buildWeeklyReportBlocks(report);
+  
+  // 创建页面
+  const pageData = await notionFetch("/pages", {
+    method: "POST",
+    body: JSON.stringify({
+      parent: {
+        database_id: databaseId,
+      },
+      properties,
+      children,
+    }),
+  });
+  
+  console.log("[Notion Sync] Weekly report page created in database:", pageData.id);
+  
+  return {
+    success: true,
+    pageId: pageData.id,
+    pageUrl: pageData.url,
+  };
+}
+
+/**
+ * 同步周报到 Notion 页面（追加内容块）
+ */
+async function syncWeeklyReportToPage(report: WeeklyReport, pageId: string): Promise<NotionSyncResult> {
+  // 构建内容块
+  const children = buildWeeklyReportBlocks(report);
+  
+  // 追加内容到页面
+  const result = await notionFetch(`/blocks/${pageId}/children`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      children,
+    }),
+  });
+  
+  console.log("[Notion Sync] Weekly report content appended to page:", pageId);
+  
+  // 获取页面信息以返回 URL
+  const pageData = await notionFetch(`/pages/${pageId}`);
+  
+  return {
+    success: true,
+    pageId: pageId,
+    pageUrl: pageData.url,
+  };
+}
+
+/**
+ * 同步周报到 Notion（自动检测类型）
+ */
+export async function syncWeeklyReportToNotion(
+  report: WeeklyReport,
+  notionId: string
+): Promise<NotionSyncResult> {
+  try {
+    // 检测 ID 类型
+    const detection = await detectNotionIdType(notionId);
+    
+    if (detection.type === "unknown") {
+      return {
+        success: false,
+        error: detection.error || "无法识别 Notion ID 类型",
+      };
+    }
+    
+    // 根据类型选择同步方式
+    if (detection.type === "database") {
+      return await syncWeeklyReportToDatabase(report, detection.id);
+    } else {
+      return await syncWeeklyReportToPage(report, detection.id);
+    }
+    
+  } catch (error: any) {
+    console.error("[Notion Sync] Weekly report error:", error);
+    return {
+      success: false,
+      error: error.message || "同步失败",
     };
   }
 }
