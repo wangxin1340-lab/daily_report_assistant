@@ -53,11 +53,15 @@ export default function WeeklyReportDetail() {
   });
 
   const syncMutation = trpc.weeklyReport.syncToNotion.useMutation({
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log("[WeeklyReport Sync] Success:", data);
       toast.success("已同步到 Notion");
       refetch();
     },
     onError: (error) => {
+      console.error("[WeeklyReport Sync] Error:", error);
+      console.error("[WeeklyReport Sync] Error message:", error.message);
+      console.error("[WeeklyReport Sync] Error data:", error.data);
       toast.error(`同步失败：${error.message}`);
     },
   });
@@ -91,7 +95,23 @@ export default function WeeklyReportDetail() {
   };
 
   const handleSync = () => {
-    syncMutation.mutate({ id: reportId });
+    // 可视化调试：确认按钮被点击
+    toast.info(`开始同步周报 ID: ${reportId}`);
+    console.log("[WeeklyReport Sync] Starting sync for report ID:", reportId);
+    
+    syncMutation.mutate(
+      { id: reportId },
+      {
+        onSuccess: (data) => {
+          console.log("[WeeklyReport Sync] Mutation success:", data);
+          toast.success(`同步成功！页面 ID: ${data.pageId}`);
+        },
+        onError: (error) => {
+          console.error("[WeeklyReport Sync] Mutation error:", error);
+          toast.error(`同步失败: ${error.message}`);
+        },
+      }
+    );
   };
 
   const handleCopy = () => {

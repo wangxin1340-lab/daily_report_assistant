@@ -597,25 +597,39 @@ export async function syncWeeklyReportToNotion(
   notionId: string
 ): Promise<NotionSyncResult> {
   try {
+    console.log("[Notion Sync] Starting weekly report sync...");
+    console.log("[Notion Sync] Report ID:", report.id);
+    console.log("[Notion Sync] Notion ID:", notionId);
+    
     // 检测 ID 类型
     const detection = await detectNotionIdType(notionId);
+    console.log("[Notion Sync] Detection result:", detection);
     
     if (detection.type === "unknown") {
+      const errorMsg = detection.error || "无法识别 Notion ID 类型";
+      console.error("[Notion Sync] Detection failed:", errorMsg);
       return {
         success: false,
-        error: detection.error || "无法识别 Notion ID 类型",
+        error: errorMsg,
       };
     }
     
     // 根据类型选择同步方式
+    let result;
     if (detection.type === "database") {
-      return await syncWeeklyReportToDatabase(report, detection.id);
+      console.log("[Notion Sync] Syncing to database:", detection.id);
+      result = await syncWeeklyReportToDatabase(report, detection.id);
     } else {
-      return await syncWeeklyReportToPage(report, detection.id);
+      console.log("[Notion Sync] Syncing to page:", detection.id);
+      result = await syncWeeklyReportToPage(report, detection.id);
     }
+    
+    console.log("[Notion Sync] Sync result:", result);
+    return result;
     
   } catch (error: any) {
     console.error("[Notion Sync] Weekly report error:", error);
+    console.error("[Notion Sync] Error stack:", error.stack);
     return {
       success: false,
       error: error.message || "同步失败",

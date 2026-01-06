@@ -873,26 +873,39 @@ ${reportData.nextWeekPlan}
     syncToNotion: protectedProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input, ctx }) => {
+        console.log("[WeeklyReport Sync] Starting sync for report ID:", input.id);
+        console.log("[WeeklyReport Sync] User ID:", ctx.user.id);
+        console.log("[WeeklyReport Sync] User notionWeeklyReportDatabaseId:", ctx.user.notionWeeklyReportDatabaseId);
+        
         const report = await getWeeklyReportById(input.id, ctx.user.id);
         if (!report) {
+          console.error("[WeeklyReport Sync] Report not found:", input.id);
           throw new Error("周报不存在");
         }
+        console.log("[WeeklyReport Sync] Report found:", report.title);
 
         if (!ctx.user.notionWeeklyReportDatabaseId) {
+          console.error("[WeeklyReport Sync] No Notion database ID configured for user:", ctx.user.id);
           throw new Error("请先在设置中配置周报 Notion 数据库 ID");
         }
 
+        console.log("[WeeklyReport Sync] Calling syncWeeklyReportToNotion with database ID:", ctx.user.notionWeeklyReportDatabaseId);
+        
         // 使用专门的周报同步函数
         const syncResult = await syncWeeklyReportToNotion(
           report,
           ctx.user.notionWeeklyReportDatabaseId!
         );
 
+        console.log("[WeeklyReport Sync] Sync result:", syncResult);
+
         await updateWeeklyReport(input.id, ctx.user.id, {
           notionPageId: syncResult.pageId,
           notionSyncedAt: new Date(),
           notionSyncStatus: "synced",
         });
+
+        console.log("[WeeklyReport Sync] Successfully synced report to Notion");
 
         return {
           success: true,
