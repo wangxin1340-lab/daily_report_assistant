@@ -179,7 +179,7 @@ function DashboardLayoutContent({
                 <div className="flex items-center gap-2 min-w-0">
                   <FileText className="h-5 w-5 text-primary shrink-0" />
                   <span className="font-semibold tracking-tight truncate">
-                    日报/周报智能助手V1.2
+                    日报周报助手
                   </span>
                 </div>
               ) : null}

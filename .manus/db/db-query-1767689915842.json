@@ -1,0 +1,9 @@
+{
+  "query": "UPDATE daily_reports SET notionSyncStatus = NULL, notionPageId = NULL, notionSyncedAt = NULL",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3d1Lf7m2FDFDbyM.root --database nJxUJi69psTZkRreYvRRCZ --execute UPDATE daily_reports SET notionSyncStatus = NULL, notionPageId = NULL, notionSyncedAt = NULL",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 1591
+}

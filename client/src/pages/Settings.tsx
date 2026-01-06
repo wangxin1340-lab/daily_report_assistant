@@ -143,39 +143,6 @@ export default function Settings() {
             </ol>
           </div>
 
-          <div className="bg-muted/50 rounded-lg p-4">
-            <p className="text-sm font-medium mb-2">数据库字段要求</p>
-            <p className="text-xs text-muted-foreground mb-3">
-              请确保您的 Notion 数据库包含以下字段：
-            </p>
-            <ul className="text-xs text-muted-foreground space-y-1">
-              <li className="flex items-center gap-2">
-                <CheckCircle className="h-3 w-3 text-green-500" />
-                <span><strong>标题</strong> (Title) - 日报标题</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <CheckCircle className="h-3 w-3 text-green-500" />
-                <span><strong>日期</strong> (Date) - 日报日期</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <CheckCircle className="h-3 w-3 text-green-500" />
-                <span><strong>工作内容</strong> (Text) - 今日工作内容</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <CheckCircle className="h-3 w-3 text-green-500" />
-                <span><strong>完成情况</strong> (Text) - 完成情况说明</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <CheckCircle className="h-3 w-3 text-green-500" />
-                <span><strong>遇到问题</strong> (Text) - 遇到的问题</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <CheckCircle className="h-3 w-3 text-green-500" />
-                <span><strong>明日计划</strong> (Text) - 明日工作计划</span>
-              </li>
-            </ul>
-          </div>
-
           <Button variant="outline" className="w-full gap-2" asChild>
             <a
               href="https://www.notion.so/my-integrations"

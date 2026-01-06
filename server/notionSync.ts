@@ -90,6 +90,7 @@ async function detectNotionIdType(notionId: string): Promise<{
   type: "page" | "database" | "unknown";
   id: string;
   title?: string;
+  titlePropertyName?: string;
   error?: string;
 }> {
   const cleanId = cleanNotionId(notionId);
@@ -99,8 +100,19 @@ async function detectNotionIdType(notionId: string): Promise<{
   try {
     const dbData = await notionFetch(`/databases/${cleanId}`);
     const title = dbData.title?.[0]?.plain_text || "未命名数据库";
-    console.log("[Notion] Detected as database:", title);
-    return { type: "database", id: cleanId, title };
+    
+    // 查找标题类型的属性名称
+    let titlePropertyName = "Name"; // 默认值
+    if (dbData.properties) {
+      for (const [propName, propValue] of Object.entries(dbData.properties)) {
+        if ((propValue as any).type === "title") {
+          titlePropertyName = propName;
+          break;
+        }
+      }
+    }
+    console.log("[Notion] Detected as database:", title, "title property:", titlePropertyName);
+    return { type: "database", id: cleanId, title, titlePropertyName };
   } catch (dbError: any) {
     console.log("[Notion] Not a database, trying as page...");
   }
@@ -227,13 +239,13 @@ function buildReportBlocks(report: DailyReport): any[] {
 /**
  * 同步日报到 Notion 数据库（创建新条目）
  */
-async function syncToDatabase(report: DailyReport, databaseId: string): Promise<NotionSyncResult> {
+async function syncToDatabase(report: DailyReport, databaseId: string, titlePropertyName: string = "Name"): Promise<NotionSyncResult> {
   const reportDate = new Date(report.reportDate);
   const businessInsights = (report as any).businessInsights || "无";
   
-  // 构建页面属性
+  // 构建页面属性，使用动态的标题属性名
   const properties: Record<string, any> = {
-    "Name": {
+    [titlePropertyName]: {
       title: [
         {
           text: {
@@ -315,7 +327,7 @@ export async function syncReportToNotion(
     
     // 根据类型选择同步方式
     if (detection.type === "database") {
-      return await syncToDatabase(report, detection.id);
+      return await syncToDatabase(report, detection.id, detection.titlePropertyName || "Name");
     } else {
       return await syncToPage(report, detection.id);
     }
@@ -555,13 +567,13 @@ function buildWeeklyReportBlocks(report: WeeklyReport): any[] {
 /**
  * 同步周报到 Notion 数据库（创建新条目）
  */
-async function syncWeeklyReportToDatabase(report: WeeklyReport, databaseId: string): Promise<NotionSyncResult> {
+async function syncWeeklyReportToDatabase(report: WeeklyReport, databaseId: string, titlePropertyName: string = "Name"): Promise<NotionSyncResult> {
   const weekStart = new Date(report.weekStartDate);
   const weekEnd = new Date(report.weekEndDate);
   
-  // 构建页面属性
+  // 构建页面属性，使用动态的标题属性名
   const properties: Record<string, any> = {
-    "Name": {
+    [titlePropertyName]: {
       title: [
         {
           text: {
@@ -651,8 +663,8 @@ export async function syncWeeklyReportToNotion(
     // 根据类型选择同步方式
     let result;
     if (detection.type === "database") {
-      console.log("[Notion Sync] Syncing to database:", detection.id);
-      result = await syncWeeklyReportToDatabase(report, detection.id);
+      console.log("[Notion Sync] Syncing to database:", detection.id, "title property:", detection.titlePropertyName);
+      result = await syncWeeklyReportToDatabase(report, detection.id, detection.titlePropertyName || "Name");
     } else {
       console.log("[Notion Sync] Syncing to page:", detection.id);
       result = await syncWeeklyReportToPage(report, detection.id);
