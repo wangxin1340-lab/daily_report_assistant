@@ -12,7 +12,7 @@ import {
   createMessage, getSessionMessages,
   createDailyReport, getDailyReportById, getUserDailyReports, updateDailyReport, updateDailyReportNotionSync, deleteDailyReport,
   createAudioFile, updateAudioTranscription,
-  updateUserNotionConfig,
+  updateUserNotionConfig, updateUserWeeklyReportNotionConfig,
   createOkrPeriod, getOkrPeriodsByUser, getActiveOkrPeriod, updateOkrPeriod,
   createObjective, getObjectivesByPeriod, updateObjective, deleteObjective,
   createKeyResult, getKeyResultsByObjective, updateKeyResult, deleteKeyResult,
@@ -489,9 +489,17 @@ ${updatedReport.summary}
   settings: router({
     // 更新 Notion 配置
     updateNotionConfig: protectedProcedure
-      .input(z.object({ notionDatabaseId: z.string() }))
+      .input(z.object({
+        notionDatabaseId: z.string().optional(),
+        notionWeeklyReportDatabaseId: z.string().optional(),
+      }))
       .mutation(async ({ input, ctx }) => {
-        await updateUserNotionConfig(ctx.user.id, input.notionDatabaseId);
+        if (input.notionDatabaseId) {
+          await updateUserNotionConfig(ctx.user.id, input.notionDatabaseId);
+        }
+        if (input.notionWeeklyReportDatabaseId) {
+          await updateUserWeeklyReportNotionConfig(ctx.user.id, input.notionWeeklyReportDatabaseId);
+        }
         return { success: true };
       }),
   }),
@@ -870,8 +878,8 @@ ${reportData.nextWeekPlan}
           throw new Error("周报不存在");
         }
 
-        if (!ctx.user.notionDatabaseId) {
-          throw new Error("请先在设置中配置 Notion 数据库 ID");
+        if (!ctx.user.notionWeeklyReportDatabaseId) {
+          throw new Error("请先在设置中配置周报 Notion 数据库 ID");
         }
 
         // 构造一个类似 DailyReport 的对象用于 Notion 同步
@@ -887,7 +895,7 @@ ${reportData.nextWeekPlan}
         
         const syncResult = await syncReportToNotion(
           reportForNotion,
-          ctx.user.notionDatabaseId
+          ctx.user.notionWeeklyReportDatabaseId!
         );
 
         await updateWeeklyReport(input.id, ctx.user.id, {

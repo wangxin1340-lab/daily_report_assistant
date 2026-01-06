@@ -106,6 +106,13 @@ export async function updateUserNotionConfig(userId: number, notionDatabaseId: s
   await db.update(users).set({ notionDatabaseId }).where(eq(users.id, userId));
 }
 
+export async function updateUserWeeklyReportNotionConfig(userId: number, notionWeeklyReportDatabaseId: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.update(users).set({ notionWeeklyReportDatabaseId }).where(eq(users.id, userId));
+}
+
 // ============ Session Functions ============
 
 export async function createSession(data: InsertSession): Promise<Session> {

@@ -14,7 +14,8 @@ export const users = mysqlTable("users", {
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
   // Notion 集成配置
-  notionDatabaseId: varchar("notionDatabaseId", { length: 64 }),
+  notionDatabaseId: varchar("notionDatabaseId", { length: 64 }), // 日报数据库 ID
+  notionWeeklyReportDatabaseId: varchar("notionWeeklyReportDatabaseId", { length: 64 }), // 周报数据库 ID
 });
 
 export type User = typeof users.$inferSelect;

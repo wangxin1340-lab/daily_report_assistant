@@ -20,7 +20,9 @@ import { toast } from "sonner";
 export default function Settings() {
   const { user } = useAuth();
   const [notionDatabaseId, setNotionDatabaseId] = useState("");
+  const [notionWeeklyReportDatabaseId, setNotionWeeklyReportDatabaseId] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [isSavingWeekly, setIsSavingWeekly] = useState(false);
 
   const updateNotionConfigMutation = trpc.settings.updateNotionConfig.useMutation({
     onSuccess: () => {
@@ -37,6 +39,9 @@ export default function Settings() {
     if (user?.notionDatabaseId) {
       setNotionDatabaseId(user.notionDatabaseId);
     }
+    if (user?.notionWeeklyReportDatabaseId) {
+      setNotionWeeklyReportDatabaseId(user.notionWeeklyReportDatabaseId);
+    }
   }, [user]);
 
   const handleSaveNotion = () => {
@@ -46,6 +51,15 @@ export default function Settings() {
     }
     setIsSaving(true);
     updateNotionConfigMutation.mutate({ notionDatabaseId: notionDatabaseId.trim() });
+  };
+
+  const handleSaveWeeklyNotion = () => {
+    if (!notionWeeklyReportDatabaseId.trim()) {
+      toast.error("请输入周报 Notion 数据库 ID");
+      return;
+    }
+    setIsSavingWeekly(true);
+    updateNotionConfigMutation.mutate({ notionWeeklyReportDatabaseId: notionWeeklyReportDatabaseId.trim() });
   };
 
   return (
@@ -172,6 +186,45 @@ export default function Settings() {
               管理 Notion 集成
             </a>
           </Button>
+        </CardContent>
+      </Card>
+
+      {/* 周报 Notion 集成 */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Database className="h-5 w-5" />
+            周报 Notion 集成
+          </CardTitle>
+          <CardDescription>
+            配置独立的 Notion 数据库以自动同步您的周报（与日报数据库分开）
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="notion-weekly-db-id">周报 Notion 数据库 ID</Label>
+            <div className="flex gap-2">
+              <Input
+                id="notion-weekly-db-id"
+                placeholder="输入您的周报 Notion 数据库 ID"
+                value={notionWeeklyReportDatabaseId}
+                onChange={(e) => setNotionWeeklyReportDatabaseId(e.target.value)}
+              />
+              <Button
+                onClick={handleSaveWeeklyNotion}
+                disabled={isSavingWeekly || updateNotionConfigMutation.isPending}
+              >
+                {isSavingWeekly || updateNotionConfigMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              请使用与日报数据库不同的 Notion 数据库，以便区分日报和周报
+            </p>
+          </div>
         </CardContent>
       </Card>
     </div>

@@ -11,6 +11,8 @@ import ReportDetail from "./pages/ReportDetail";
 import Settings from "./pages/Settings";
 import OKR from "./pages/OKR";
 import WeeklyReport from "./pages/WeeklyReport";
+import WeeklyReportHistory from "./pages/WeeklyReportHistory";
+import WeeklyReportDetail from "./pages/WeeklyReportDetail";
 
 function Router() {
   return (
@@ -21,6 +23,8 @@ function Router() {
         <Route path="/report/:id" component={ReportDetail} />
         <Route path="/okr" component={OKR} />
         <Route path="/weekly-report" component={WeeklyReport} />
+        <Route path="/weekly-report-history" component={WeeklyReportHistory} />
+        <Route path="/weekly-report/:id" component={WeeklyReportDetail} />
         <Route path="/settings" component={Settings} />
         <Route path="/404" component={NotFound} />
         <Route component={NotFound} />
