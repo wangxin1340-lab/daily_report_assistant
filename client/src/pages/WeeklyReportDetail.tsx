@@ -2,7 +2,7 @@ import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { Calendar, Save, Trash2, Copy, Cloud, ArrowLeft, Edit2, X } from "lucide-react";
+import { Calendar, Save, Trash2, Copy, Cloud, ArrowLeft, Edit2, X, CheckCircle, Loader2 } from "lucide-react";
 import { useLocation, useParams } from "wouter";
 import { toast } from "sonner";
 import { useState } from "react";
@@ -17,6 +17,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Streamdown } from "streamdown";
 
 export default function WeeklyReportDetail() {
@@ -53,15 +54,10 @@ export default function WeeklyReportDetail() {
   });
 
   const syncMutation = trpc.weeklyReport.syncToNotion.useMutation({
-    onSuccess: (data) => {
-      console.log("[WeeklyReport Sync] Success:", data);
-      toast.success("已同步到 Notion");
+    onSuccess: () => {
       refetch();
     },
     onError: (error) => {
-      console.error("[WeeklyReport Sync] Error:", error);
-      console.error("[WeeklyReport Sync] Error message:", error.message);
-      console.error("[WeeklyReport Sync] Error data:", error.data);
       toast.error(`同步失败：${error.message}`);
     },
   });
@@ -95,23 +91,7 @@ export default function WeeklyReportDetail() {
   };
 
   const handleSync = () => {
-    // 可视化调试：确认按钮被点击
-    toast.info(`开始同步周报 ID: ${reportId}`);
-    console.log("[WeeklyReport Sync] Starting sync for report ID:", reportId);
-    
-    syncMutation.mutate(
-      { id: reportId },
-      {
-        onSuccess: (data) => {
-          console.log("[WeeklyReport Sync] Mutation success:", data);
-          toast.success(`同步成功！页面 ID: ${data.pageId}`);
-        },
-        onError: (error) => {
-          console.error("[WeeklyReport Sync] Mutation error:", error);
-          toast.error(`同步失败: ${error.message}`);
-        },
-      }
-    );
+    syncMutation.mutate({ id: reportId });
   };
 
   const handleCopy = () => {
@@ -168,15 +148,28 @@ export default function WeeklyReportDetail() {
                 <Copy className="h-4 w-4 mr-2" />
                 复制
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleSync}
-                disabled={syncMutation.isPending}
-              >
-                <Cloud className="h-4 w-4 mr-2" />
-                {syncMutation.isPending ? "同步中..." : "同步到 Notion"}
-              </Button>
+              {/* Notion 同步状态 */}
+              {report.notionSyncStatus === "synced" ? (
+                <Badge variant="secondary" className="gap-1 h-8 px-3">
+                  <CheckCircle className="h-3 w-3" />
+                  已同步到 Notion
+                </Badge>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSync}
+                  disabled={syncMutation.isPending}
+                  className="gap-2"
+                >
+                  {syncMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Cloud className="h-4 w-4" />
+                  )}
+                  同步到 Notion
+                </Button>
+              )}
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
