@@ -1,0 +1,15 @@
+{
+  "query": "SELECT id, title, LEFT(okrProgress, 2000) as okrProgress FROM weekly_reports WHERE okrProgress IS NOT NULL LIMIT 1",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3d1Lf7m2FDFDbyM.root --database nJxUJi69psTZkRreYvRRCZ --execute SELECT id, title, LEFT(okrProgress, 2000) as okrProgress FROM weekly_reports WHERE okrProgress IS NOT NULL LIMIT 1",
+  "rows": [
+    {
+      "id": "1",
+      "title": "工作周报 12/21/2025 - 1/4/2026",
+      "okrProgress": "[{\"objectiveId\": 1, \"objectiveTitle\": \"搭建公司统一知识库，覆盖全业务场景，让用户会用、用好洋葱，支撑不同业务方服务效率 / 服务质量提升\", \"progress\": \"已完成知识库网站基础版（V1.0）的开发和部署，解决了项目信息流转中的“信息孤岛”问题，将信息共享模式提升为中心化、可视化。\", \"relatedWork\": \"公司级知识库项目网站开发上线（基础版）；识别出缺少CMS是后续维护的关键瓶颈。\"}, {\"objectiveId\": 2, \"objectiveTitle\": \"伴学AI提效持续推进，落地企微 AI 机器人首触模式及收集反馈，持续推动用户体验优化\", \"progress\": \"已参与私域1.0项目智能体搭建沟通，明确了免费与付费用户的服务差异，并确定销售侧将优先针对免费用户设计智能体服务流程。成功解决了Chatlab数据导入问题，并进行了助教及单个用户的私聊记录分析，为后续聚合分析和语料准备提供数据支持。\", \"relatedWork\": \"测试 AI 聊天记录分析器 Chatlab；参与【私域1.0项目】智能体搭建沟通；解决了聊天记录xlsx文件转json格式导入Chatlab的问题。\"}, {\"objectiveId\": 3, \"objectiveTitle\": \"升级伴学服务流程，协助优化服务质量与维护用户口碑，让用户会用、用好洋葱\", \"progress\": \"协助新人搭建了订单接待过程的数据 BI 看板，并确定了外部对接机制的逐步交接计划，以确保服务质量的稳定性和深度提升。针对企微游戏化学习激励方案进行了基础的项目阶段及任务拆解思考。\", \"relatedWork\": \"优化服务流程及对接机制，协助新人搭建订单接待过程的数据 BI 看板；针对企微游戏化学习激励方案进行了基础的项目阶段及任务拆解思考。\"}, {\"objectiveId\": 4, \"objectiveTitle\": \"落地 AI 学习与应用，搭建 AI 网页工具并赋能工作效能提升\", \"progress\": \"完成了智能日报助手V1.1版本的开发、调试和公司内案例展示，实现了通过访谈生成包含业务洞察的结构化日报，显著提升了个人总结和反思的效率和深度。\", \"relatedWork\": \"完成了智能日报助手的V1版本开发；调整了日报的生成结构，增加业务洞察引导提问；智能日报助手V1.1版公司内案例展示。\"}]"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\ttitle\tokrProgress\n1\t工作周报 12/21/2025 - 1/4/2026\t[{\"objectiveId\": 1, \"objectiveTitle\": \"搭建公司统一知识库，覆盖全业务场景，让用户会用、用好洋葱，支撑不同业务方服务效率 / 服务质量提升\", \"progress\": \"已完成知识库网站基础版（V1.0）的开发和部署，解决了项目信息流转中的“信息孤岛”问题，将信息共享模式提升为中心化、可视化。\", \"relatedWork\": \"公司级知识库项目网站开发上线（基础版）；识别出缺少CMS是后续维护的关键瓶颈。\"}, {\"objectiveId\": 2, \"objectiveTitle\": \"伴学AI提效持续推进，落地企微 AI 机器人首触模式及收集反馈，持续推动用户体验优化\", \"progress\": \"已参与私域1.0项目智能体搭建沟通，明确了免费与付费用户的服务差异，并确定销售侧将优先针对免费用户设计智能体服务流程。成功解决了Chatlab数据导入问题，并进行了助教及单个用户的私聊记录分析，为后续聚合分析和语料准备提供数据支持。\", \"relatedWork\": \"测试 AI 聊天记录分析器 Chatlab；参与【私域1.0项目】智能体搭建沟通；解决了聊天记录xlsx文件转json格式导入Chatlab的问题。\"}, {\"objectiveId\": 3, \"objectiveTitle\": \"升级伴学服务流程，协助优化服务质量与维护用户口碑，让用户会用、用好洋葱\", \"progress\": \"协助新人搭建了订单接待过程的数据 BI 看板，并确定了外部对接机制的逐步交接计划，以确保服务质量的稳定性和深度提升。针对企微游戏化学习激励方案进行了基础的项目阶段及任务拆解思考。\", \"relatedWork\": \"优化服务流程及对接机制，协助新人搭建订单接待过程的数据 BI 看板；针对企微游戏化学习激励方案进行了基础的项目阶段及任务拆解思考。\"}, {\"objectiveId\": 4, \"objectiveTitle\": \"落地 AI 学习与应用，搭建 AI 网页工具并赋能工作效能提升\", \"progress\": \"完成了智能日报助手V1.1版本的开发、调试和公司内案例展示，实现了通过访谈生成包含业务洞察的结构化日报，显著提升了个人总结和反思的效率和深度。\", \"relatedWork\": \"完成了智能日报助手的V1版本开发；调整了日报的生成结构，增加业务洞察引导提问；智能日报助手V1.1版公司内案例展示。\"}]\n",
+  "stderr": "",
+  "execution_time_ms": 1519
+}

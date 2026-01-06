@@ -897,7 +897,25 @@ ${reportData.nextWeekPlan}
           ctx.user.notionWeeklyReportDatabaseId!
         );
 
-        console.log("[WeeklyReport Sync] Sync result:", syncResult);
+        console.log("[WeeklyReport Sync] Sync result:", JSON.stringify(syncResult, null, 2));
+
+        // 检查同步是否成功
+        if (!syncResult.success) {
+          console.error("[WeeklyReport Sync] Sync failed:", syncResult.error);
+          
+          // 更新同步状态为失败
+          await updateWeeklyReport(input.id, ctx.user.id, {
+            notionSyncStatus: "failed",
+          });
+          
+          throw new Error(syncResult.error || "同步到 Notion 失败");
+        }
+
+        // 检查 pageId 是否存在
+        if (!syncResult.pageId) {
+          console.error("[WeeklyReport Sync] No pageId returned from sync");
+          throw new Error("同步成功但未返回页面 ID");
+        }
 
         await updateWeeklyReport(input.id, ctx.user.id, {
           notionPageId: syncResult.pageId,
@@ -905,7 +923,7 @@ ${reportData.nextWeekPlan}
           notionSyncStatus: "synced",
         });
 
-        console.log("[WeeklyReport Sync] Successfully synced report to Notion");
+        console.log("[WeeklyReport Sync] Successfully synced report to Notion, pageId:", syncResult.pageId);
 
         return {
           success: true,

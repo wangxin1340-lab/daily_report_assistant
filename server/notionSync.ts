@@ -445,16 +445,49 @@ function buildWeeklyReportBlocks(report: WeeklyReport): any[] {
       
       if (Array.isArray(okrData)) {
         okrData.forEach((obj: any) => {
+          // 支持两种数据结构：
+          // 1. 新结构: { objectiveTitle, progress, relatedWork }
+          // 2. 旧结构: { title, keyResults }
+          const objectiveTitle = obj.objectiveTitle || obj.title || '未命名目标';
+          
           // Objective 标题
           blocks.push({
             object: "block",
             type: "heading_3",
             heading_3: {
-              rich_text: [{ type: "text", text: { content: `▶️ ${obj.title}` } }],
+              rich_text: [{ type: "text", text: { content: `▶️ ${objectiveTitle}` } }],
             },
           });
           
-          // Key Results
+          // 新结构：显示进展和相关工作
+          if (obj.progress) {
+            blocks.push({
+              object: "block",
+              type: "paragraph",
+              paragraph: {
+                rich_text: [{ 
+                  type: "text", 
+                  text: { content: `进展：${obj.progress}` },
+                  annotations: { bold: true }
+                }],
+              },
+            });
+          }
+          
+          if (obj.relatedWork) {
+            blocks.push({
+              object: "block",
+              type: "paragraph",
+              paragraph: {
+                rich_text: [{ 
+                  type: "text", 
+                  text: { content: `相关工作：${obj.relatedWork}` }
+                }],
+              },
+            });
+          }
+          
+          // 旧结构：Key Results
           if (obj.keyResults && Array.isArray(obj.keyResults)) {
             obj.keyResults.forEach((kr: any) => {
               blocks.push({
@@ -463,7 +496,7 @@ function buildWeeklyReportBlocks(report: WeeklyReport): any[] {
                 bulleted_list_item: {
                   rich_text: [{ 
                     type: "text", 
-                    text: { content: `${kr.title}${kr.progress ? ` - ${kr.progress}` : ''}` } 
+                    text: { content: `${kr.title || kr.name || ''}${kr.progress ? ` - ${kr.progress}` : ''}` } 
                   }],
                 },
               });
@@ -474,6 +507,7 @@ function buildWeeklyReportBlocks(report: WeeklyReport): any[] {
         blocks.push(...createParagraphBlocks(JSON.stringify(okrData, null, 2)));
       }
     } catch (e) {
+      console.error("[Notion Sync] Error parsing OKR progress:", e);
       blocks.push(...createParagraphBlocks(String(report.okrProgress)));
     }
   }
