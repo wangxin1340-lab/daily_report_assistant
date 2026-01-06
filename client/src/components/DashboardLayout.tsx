@@ -69,7 +69,7 @@ export default function DashboardLayout({
               <FileText className="h-8 w-8 text-primary" />
             </div>
             <h1 className="text-2xl font-semibold tracking-tight text-center">
-              智能日报助手
+              日报周报助手
             </h1>
             <p className="text-sm text-muted-foreground text-center max-w-sm">
               通过对话和语音快速生成结构化工作日报，自动同步到 Notion

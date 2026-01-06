@@ -25,7 +25,7 @@ export default function WeeklyReport() {
   const { data: periods } = trpc.okr.listPeriods.useQuery();
   const { data: activePeriod } = trpc.okr.getActivePeriod.useQuery();
   const { data: dailyReports } = trpc.report.list.useQuery();
-  const { data: weeklyReports } = trpc.weeklyReport.list.useQuery();
+
 
   // Mutations
   const generateReport = trpc.weeklyReport.generate.useMutation({
@@ -302,41 +302,7 @@ export default function WeeklyReport() {
             </Card>
           )}
 
-          {/* 历史周报 */}
-          {!generatedReport && weeklyReports && weeklyReports.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>历史周报</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {weeklyReports.slice(0, 5).map((report: any) => (
-                    <div
-                      key={report.id}
-                      className="flex items-center justify-between p-3 rounded-lg border hover:bg-accent/50 transition-colors cursor-pointer"
-                      onClick={() => navigate(`/weekly-report/${report.id}`)}
-                    >
-                      <div className="flex-1">
-                        <div className="font-medium">{report.title}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {format(new Date(report.weekStartDate), "yyyy年MM月dd日", {
-                            locale: zhCN,
-                          })}{" "}
-                          -{" "}
-                          {format(new Date(report.weekEndDate), "yyyy年MM月dd日", {
-                            locale: zhCN,
-                          })}
-                        </div>
-                      </div>
-                      {report.notionSyncStatus === "synced" && (
-                        <CheckCircle2 className="h-4 w-4 text-green-500" />
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+
         </div>
       </div>
     </div>
