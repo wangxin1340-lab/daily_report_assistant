@@ -19,7 +19,7 @@ import {
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Streamdown } from "streamdown";
 import { toast } from "sonner";
-import { useLocation } from "wouter";
+import { useLocation, useParams } from "wouter";
 
 type Message = {
   id?: number;
@@ -32,9 +32,12 @@ type Message = {
 export default function Chat() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
+  const params = useParams<{ id?: string }>();
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
-  const [sessionId, setSessionId] = useState<number | null>(null);
+  const [sessionId, setSessionId] = useState<number | null>(
+    params.id ? parseInt(params.id, 10) : null
+  );
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [readyToGenerate, setReadyToGenerate] = useState(false);
@@ -68,12 +71,31 @@ export default function Chat() {
     }
   }, [createSessionMutation]);
 
-  // 初始化会话
+  // 加载现有会话的消息
+  const messagesQuery = trpc.session.messages.useQuery(
+    { sessionId: sessionId! },
+    { enabled: !!sessionId && !!params.id }
+  );
+
+  // 当从 URL 加载会话时，设置消息
   useEffect(() => {
-    if (user && !sessionId) {
+    if (messagesQuery.data && params.id) {
+      setMessages(messagesQuery.data.map((m: { id: number; role: string; content: string; audioUrl?: string | null; createdAt?: Date | null }) => ({
+        id: m.id,
+        role: m.role as "user" | "assistant" | "system",
+        content: m.content,
+        audioUrl: m.audioUrl,
+        createdAt: m.createdAt ? new Date(m.createdAt) : undefined,
+      })));
+    }
+  }, [messagesQuery.data, params.id]);
+
+  // 初始化会话（仅当没有 URL 参数时创建新会话）
+  useEffect(() => {
+    if (user && !sessionId && !params.id) {
       startNewSession();
     }
-  }, [user, sessionId, startNewSession]);
+  }, [user, sessionId, params.id, startNewSession]);
 
   // 滚动到底部
   const scrollToBottom = useCallback(() => {

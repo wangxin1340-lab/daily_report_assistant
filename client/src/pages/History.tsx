@@ -16,6 +16,14 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -81,11 +89,13 @@ export default function History() {
   // 创建补写会话
   const createSessionMutation = trpc.session.create.useMutation({
     onSuccess: (session) => {
+      console.log('[Makeup] Session created successfully:', session);
       setShowMakeupDialog(false);
       setMakeupDate("");
       setLocation(`/chat/${session.id}`);
     },
     onError: (error) => {
+      console.error('[Makeup] Session creation failed:', error);
       toast.error(error.message || "创建会话失败");
     },
   });
@@ -502,14 +512,14 @@ export default function History() {
       )}
       
       {/* 补写日报对话框 */}
-      <AlertDialog open={showMakeupDialog} onOpenChange={setShowMakeupDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>补写日报</AlertDialogTitle>
-            <AlertDialogDescription>
+      <Dialog open={showMakeupDialog} onOpenChange={setShowMakeupDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>补写日报</DialogTitle>
+            <DialogDescription>
               选择需要补写日报的日期
-            </AlertDialogDescription>
-          </AlertDialogHeader>
+            </DialogDescription>
+          </DialogHeader>
           <div className="py-4">
             <Label htmlFor="makeup-date">日期</Label>
             <Input
@@ -521,24 +531,30 @@ export default function History() {
               className="mt-2"
             />
           </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowMakeupDialog(false)}>取消</Button>
+            <Button
+              type="button"
               onClick={() => {
-                if (!makeupDate) {
+                // 直接从 DOM 获取日期值，避免状态同步问题
+                const dateInput = document.getElementById('makeup-date') as HTMLInputElement;
+                const dateValue = dateInput?.value || makeupDate;
+                console.log('[Makeup] Button clicked, dateValue:', dateValue, 'makeupDate:', makeupDate);
+                if (!dateValue) {
                   toast.error("请选择日期");
                   return;
                 }
                 // 检查该日期是否已有日报
                 const existingReport = reports?.find(
-                  (r) => new Date(r.reportDate).toDateString() === new Date(makeupDate).toDateString()
+                  (r) => new Date(r.reportDate).toDateString() === new Date(dateValue).toDateString()
                 );
                 if (existingReport) {
                   toast.error("该日期已有日报，请直接查看或删除后再补写");
                   return;
                 }
                 // 创建补写会话
-                createSessionMutation.mutate({ targetDate: makeupDate });
+                console.log('[Makeup] Creating session for date:', dateValue);
+                createSessionMutation.mutate({ targetDate: dateValue });
               }}
               disabled={createSessionMutation.isPending}
             >
@@ -547,10 +563,10 @@ export default function History() {
               ) : (
                 "开始补写"
               )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

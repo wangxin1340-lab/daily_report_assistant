@@ -121,7 +121,7 @@ export const appRouter = router({
           userId: ctx.user.id,
           title: targetDate ? `补写日报 - ${displayDate}` : `日报 - ${displayDate}`,
           status: "active",
-          targetDate: targetDate ? new Date(targetDate) : null,
+          targetDate: targetDate ? new Date(targetDate + 'T00:00:00') : null,
         });
         
         // 创建系统欢迎消息

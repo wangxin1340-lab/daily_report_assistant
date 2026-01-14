@@ -19,6 +19,7 @@ function Router() {
     <DashboardLayout>
       <Switch>
         <Route path="/" component={Chat} />
+        <Route path="/chat/:id" component={Chat} />
         <Route path="/history" component={History} />
         <Route path="/report/:id" component={ReportDetail} />
         <Route path="/okr" component={OKR} />
