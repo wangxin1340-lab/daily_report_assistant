@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
+import { TRPCError } from "@trpc/server";
 import { invokeLLM } from "./_core/llm";
 import { transcribeAudio } from "./_core/voiceTranscription";
 import { storagePut } from "./storage";
@@ -106,22 +107,36 @@ export const appRouter = router({
   // 会话管理
   session: router({
     // 创建新会话
-    create: protectedProcedure.mutation(async ({ ctx }) => {
-      const session = await createSession({
-        userId: ctx.user.id,
-        title: `日报 - ${new Date().toLocaleDateString('zh-CN')}`,
-        status: "active",
-      });
-      
-      // 创建系统欢迎消息（脱口秀风格）
-      await createMessage({
-        sessionId: session.id,
-        role: "assistant",
-        content: "你好！我是你的日报助手。请告诉我你今天主要完成了哪些工作？",
-      });
-      
-      return session;
-    }),
+    create: protectedProcedure
+      .input(z.object({
+        targetDate: z.string().optional(), // 补写日报的目标日期 (YYYY-MM-DD)
+      }).optional())
+      .mutation(async ({ ctx, input }) => {
+        const targetDate = input?.targetDate;
+        const displayDate = targetDate 
+          ? new Date(targetDate).toLocaleDateString('zh-CN')
+          : new Date().toLocaleDateString('zh-CN');
+        
+        const session = await createSession({
+          userId: ctx.user.id,
+          title: targetDate ? `补写日报 - ${displayDate}` : `日报 - ${displayDate}`,
+          status: "active",
+          targetDate: targetDate ? new Date(targetDate) : null,
+        });
+        
+        // 创建系统欢迎消息
+        const welcomeMessage = targetDate
+          ? `你好！我是你的日报助手。请告诉我你在 ${displayDate} 主要完成了哪些工作？`
+          : `你好！我是你的日报助手。请告诉我你今天主要完成了哪些工作？`;
+        
+        await createMessage({
+          sessionId: session.id,
+          role: "assistant",
+          content: welcomeMessage,
+        });
+        
+        return session;
+      }),
 
     // 获取用户所有会话
     list: protectedProcedure.query(async ({ ctx }) => {
@@ -242,6 +257,12 @@ export const appRouter = router({
     generate: protectedProcedure
       .input(z.object({ sessionId: z.number() }))
       .mutation(async ({ input, ctx }) => {
+        // 获取会话信息
+        const session = await getSessionById(input.sessionId);
+        if (!session) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "会话不存在" });
+        }
+        
         // 获取会话消息
         const messages = await getSessionMessages(input.sessionId);
         
@@ -282,8 +303,12 @@ export const appRouter = router({
         const rawReportContent = response.choices[0]?.message?.content;
         const reportContent = JSON.parse(typeof rawReportContent === 'string' ? rawReportContent : "{}");
 
+        // 使用 targetDate 或 createdAt 作为日报日期
+        const reportDate = session.targetDate ? new Date(session.targetDate) : new Date();
+        const displayDate = reportDate.toLocaleDateString('zh-CN');
+        
         // 生成 Markdown 格式日报
-        const markdownContent = `# 工作日报 - ${new Date().toLocaleDateString('zh-CN')}
+        const markdownContent = `# 工作日报 - ${displayDate}
 
 ## 📋 工作内容
 ${reportContent.workContent}
@@ -308,7 +333,7 @@ ${reportContent.summary}
         const report = await createDailyReport({
           userId: ctx.user.id,
           sessionId: input.sessionId,
-          reportDate: new Date(),
+          reportDate,
           workContent: reportContent.workContent,
           completionStatus: reportContent.completionStatus,
           problems: reportContent.problems,

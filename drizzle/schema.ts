@@ -1,4 +1,4 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, json, boolean } from "drizzle-orm/mysql-core";
+import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, json, boolean, date } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -29,6 +29,7 @@ export const sessions = mysqlTable("sessions", {
   userId: int("userId").notNull(),
   title: varchar("title", { length: 255 }),
   status: mysqlEnum("status", ["active", "completed", "archived"]).default("active").notNull(),
+  targetDate: date("targetDate"), // 补写日报的目标日期，如果为 null 则使用 createdAt
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

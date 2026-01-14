@@ -58,6 +58,10 @@ export default function History() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   
+  // 补写日报对话框
+  const [showMakeupDialog, setShowMakeupDialog] = useState(false);
+  const [makeupDate, setMakeupDate] = useState("");
+  
   // 排序状态
   const [sortBy, setSortBy] = useState<SortBy>("date_desc");
 
@@ -71,6 +75,18 @@ export default function History() {
     },
     onError: (error) => {
       toast.error(error.message || "删除失败");
+    },
+  });
+  
+  // 创建补写会话
+  const createSessionMutation = trpc.session.create.useMutation({
+    onSuccess: (session) => {
+      setShowMakeupDialog(false);
+      setMakeupDate("");
+      setLocation(`/chat/${session.id}`);
+    },
+    onError: (error) => {
+      toast.error(error.message || "创建会话失败");
     },
   });
 
@@ -204,6 +220,10 @@ export default function History() {
             )}
           </p>
         </div>
+        <Button onClick={() => setShowMakeupDialog(true)} className="gap-2">
+          <CalendarDays className="h-4 w-4" />
+          补写日报
+        </Button>
       </div>
 
       {/* 搜索和筛选栏 */}
@@ -480,6 +500,57 @@ export default function History() {
           ))}
         </div>
       )}
+      
+      {/* 补写日报对话框 */}
+      <AlertDialog open={showMakeupDialog} onOpenChange={setShowMakeupDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>补写日报</AlertDialogTitle>
+            <AlertDialogDescription>
+              选择需要补写日报的日期
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-4">
+            <Label htmlFor="makeup-date">日期</Label>
+            <Input
+              id="makeup-date"
+              type="date"
+              value={makeupDate}
+              onChange={(e) => setMakeupDate(e.target.value)}
+              max={new Date().toISOString().split('T')[0]}
+              className="mt-2"
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (!makeupDate) {
+                  toast.error("请选择日期");
+                  return;
+                }
+                // 检查该日期是否已有日报
+                const existingReport = reports?.find(
+                  (r) => new Date(r.reportDate).toDateString() === new Date(makeupDate).toDateString()
+                );
+                if (existingReport) {
+                  toast.error("该日期已有日报，请直接查看或删除后再补写");
+                  return;
+                }
+                // 创建补写会话
+                createSessionMutation.mutate({ targetDate: makeupDate });
+              }}
+              disabled={createSessionMutation.isPending}
+            >
+              {createSessionMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                "开始补写"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

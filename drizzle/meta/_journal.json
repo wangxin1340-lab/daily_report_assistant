@@ -36,6 +36,13 @@
       "when": 1767679200321,
       "tag": "0004_clear_darkhawk",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1768387198929,
+      "tag": "0005_unknown_cable",
+      "breakpoints": true
     }
   ]
 }
